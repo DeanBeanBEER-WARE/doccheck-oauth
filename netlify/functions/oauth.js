@@ -1,15 +1,29 @@
+// netlify/functions/oauth.js
+
+/**
+ * DocCheck OAuth2-Flow via Netlify Function
+ * Greift auf Umgebungsvariablen DOCCHECK_CLIENT_ID und DOCCHECK_CLIENT_SECRET zu,
+ * die du in den Netlify-Einstellungen hinterlegst.
+ */
+
 const fetch = require('node-fetch'); 
+// Bei Node >= 18 könntest du fetch() direkt nutzen.
+// Hier nutzen wir node-fetch, wie in package.json angegeben.
 
 exports.handler = async (event) => {
-  // Tipp: Nutze Environment-Variablen, anstatt hier feste Werte einzutragen
-  const clientId = process.env.DOCCHECK_CLIENT_ID || '2000000021573';
-  const clientSecret = process.env.DOCCHECK_CLIENT_SECRET || '8078c60cf53d';
-  const redirectUri = 'https://deine-seite.netlify.app/.netlify/functions/oauth';
+  // 1) Client-Daten aus Umgebungsvariablen
+  const clientId = process.env.DOCCHECK_CLIENT_ID || 'CLIENT_ID_PLATZHALTER';
+  const clientSecret = process.env.DOCCHECK_CLIENT_SECRET || 'CLIENT_SECRET_PLATZHALTER';
 
+  // Hier muss deine Netlify-Domain stehen.
+  // Diese URL muss auch im DocCheck-Portal als "Redirect-URL" hinterlegt sein.
+  const redirectUri = 'https://dein-projekt.netlify.app/.netlify/functions/oauth';
+
+  // 2) Prüfen, ob die Anfrage einen Code-Parameter enthält
   const { code } = event.queryStringParameters || {};
 
+  // Wenn kein Code -> Weiterleitung zur DocCheck-Anmeldeseite
   if (!code) {
-    // Weiterleitung zu DocCheck
     return {
       statusCode: 302,
       headers: {
@@ -18,7 +32,7 @@ exports.handler = async (event) => {
     };
   }
 
-  // Token-URL
+  // 3) Token anfordern
   const tokenUrl = 'https://login.doccheck.com/oauth/token';
   const params = new URLSearchParams({
     grant_type: 'authorization_code',
@@ -29,6 +43,7 @@ exports.handler = async (event) => {
   });
 
   try {
+    // Token holen
     const response = await fetch(tokenUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -36,22 +51,26 @@ exports.handler = async (event) => {
     });
     const data = await response.json();
 
+    // 4) Wenn wir ein Access Token erhalten:
     if (data.access_token) {
-      // Cookie setzen & weiterleiten
+      // Cookie setzen und redirecten
       return {
         statusCode: 302,
         headers: {
           'Set-Cookie': `uniqueKey=${data.access_token}; HttpOnly; Secure; Path=/; Max-Age=3600; SameSite=Lax`,
+          // Hier legst du die Zielseite fest, auf die nach erfolgreichem Login geleitet wird:
           Location: '/fachbereich/arzt'
         }
       };
     } else {
+      // Fehlerfall: kein access_token
       return {
         statusCode: 401,
         body: JSON.stringify({ error: 'Authentication failed', details: data })
       };
     }
   } catch (error) {
+    // Allgemeiner Fehler
     console.error(error);
     return {
       statusCode: 500,
