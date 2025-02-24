@@ -59,7 +59,7 @@ exports.handler = async (event) => {
         headers: {
           'Set-Cookie': `uniqueKey=${data.access_token}; HttpOnly; Secure; Path=/; Max-Age=3600; SameSite=Lax`,
           // Hier legst du die Zielseite fest, auf die nach erfolgreichem Login geleitet wird:
-          Location: '/fachbereich/arzt'
+          Location: 'https://www.420pharma.de/fachbereich'
         }
       };
     } else {
