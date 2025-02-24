@@ -15,7 +15,7 @@ exports.handler = async (event, context) => {
   const redirect_uri = 'https://420pharma.netlify.app/.netlify/functions/oauth';
 
   // Verwende den korrekten Token-Endpunkt auf der Login-Domain
-  const tokenResponse = await fetch('https://login.doccheck.com/oauth/token', {
+  const tokenResponse = await fetch('https://login.doccheck.com/service/oauth/access_token/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -37,7 +37,7 @@ exports.handler = async (event, context) => {
   }
 
   // Verwende auch hier den korrekten Endpoint, wenn nötig
-  const userInfoResponse = await fetch('https://login.doccheck.com/api/userinfo', {
+  const userInfoResponse = await fetch('https://login.doccheck.com/service/oauth/user_data/v2/', {
     headers: { Authorization: `Bearer ${tokenData.access_token}` },
   });
 
