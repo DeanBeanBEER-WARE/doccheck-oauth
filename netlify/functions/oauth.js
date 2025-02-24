@@ -63,7 +63,7 @@ exports.handler = async (event, context) => {
   return {
     statusCode: 302,
     headers: {
-      'Set-Cookie': `access_token=${tokenData.access_token}; HttpOnly; Secure; SameSite=Strict; Path=/`,
+      'Set-Cookie': `access_token=${tokenData.access_token}; Secure; SameSite=Strict; Path=/`,
       Location: redirectUrl,
     },
   };
