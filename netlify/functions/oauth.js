@@ -1,12 +1,12 @@
 const fetch = require('node-fetch');
 
-exports.handler = async (event, context) => {
-  const { code, state } = event.queryStringParameters;
+exports.handler = async (event) => {
+  const { code, state } = event.queryStringParameters || {};
 
   if (!code) {
-    return { 
-      statusCode: 400, 
-      body: JSON.stringify({ error: 'Authorization code missing' }) 
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: 'Authorization code missing' }),
     };
   }
 
@@ -14,7 +14,7 @@ exports.handler = async (event, context) => {
   const client_secret = process.env.CLIENT_SECRET;
   const redirect_uri = 'https://420pharma.netlify.app/.netlify/functions/oauth';
 
-  // Token-Austausch: URL-encoded POST Request
+  // 1) Tausche den code gegen einen Access Token
   const tokenResponse = await fetch('https://login.doccheck.com/service/oauth/access_token/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -26,43 +26,42 @@ exports.handler = async (event, context) => {
       client_secret,
     }),
   });
-
   const tokenData = await tokenResponse.json();
 
   if (tokenData.error) {
-    return { 
-      statusCode: 400, 
-      body: JSON.stringify({ error: tokenData.error_description }) 
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: tokenData.error_description }),
     };
   }
 
-  // Userdaten abrufen
+  // 2) (Optional) Userinfo abrufen, falls du zusätzliche Infos brauchst
+  //    Hier nur, wenn du noch das Profil abfragen willst.
+  /*
   const userInfoResponse = await fetch('https://login.doccheck.com/service/oauth/user_data/v2/', {
     headers: { Authorization: `Bearer ${tokenData.access_token}` },
   });
-
   const userInfo = await userInfoResponse.json();
+  */
 
-  // Bestimme den Zielpfad:
+  // 3) Bestimme das Ziel (based on "state" or fallback)
   let redirectUrl;
   if (state && state.trim() !== '') {
-    // Wenn der state-Parameter vorhanden ist, nehmen wir an, er enthält einen relativen Pfad, z. B. "/fachbereich/arzt"
+    // z.B. state="/fachbereich/arzt"
     redirectUrl = `https://www.420pharma.de${state}`;
   } else {
-    // Standardziel: Falls der User als Arzt eingestuft wird, weiter zu /fachbereich/arzt, sonst zu /fachbereich
+    // Standard: "/fachbereich"
     redirectUrl = 'https://www.420pharma.de/fachbereich';
-    if (userInfo.profession === 'doctor') {
-      redirectUrl = 'https://www.420pharma.de/fachbereich/arzt';
-    }
   }
-  
-  // Statt eines Cookies leiten wir mit dem Token als URL-Parameter weiter.
-  const finalRedirectUrl = `${redirectUrl}?token=${tokenData.access_token}`;
-  
+
+  // 4) Token an Ziel-URL anhängen
+  const finalRedirect = `${redirectUrl}?token=${tokenData.access_token}`;
+
+  // 5) Weiterleitung
   return {
     statusCode: 302,
     headers: {
-      Location: finalRedirectUrl,
+      Location: finalRedirect,
     },
   };
 };
