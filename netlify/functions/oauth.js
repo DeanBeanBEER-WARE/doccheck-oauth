@@ -44,27 +44,25 @@ exports.handler = async (event, context) => {
   const userInfo = await userInfoResponse.json();
 
   // Bestimme den Zielpfad:
-  // Falls im "state"-Parameter ein Wert vorhanden ist, nutze diesen (z.B. "/fachbereich" oder "/fachbereich/arzt").
-  // Andernfalls wähle einen Standardwert basierend auf den Userdaten.
   let redirectUrl;
   if (state && state.trim() !== '') {
-    // Wenn state relativ ist, kannst du ggf. eine absolute URL voranstellen:
-    // Hier gehen wir davon aus, dass state eine relative URL ist, z. B. "/fachbereich/arzt"
+    // Wenn der state-Parameter vorhanden ist, nehmen wir an, er enthält einen relativen Pfad, z. B. "/fachbereich/arzt"
     redirectUrl = `https://www.420pharma.de${state}`;
   } else {
-    // Standardziel: Falls User ein Arzt ist, weiter zu /fachbereich/arzt, sonst zu /fachbereich
+    // Standardziel: Falls der User als Arzt eingestuft wird, weiter zu /fachbereich/arzt, sonst zu /fachbereich
     redirectUrl = 'https://www.420pharma.de/fachbereich';
     if (userInfo.profession === 'doctor') {
       redirectUrl = 'https://www.420pharma.de/fachbereich/arzt';
     }
   }
   
-  // Weiterleiten und Token als Cookie setzen (optional: auch als Query-Parameter anhängen, falls nötig)
+  // Statt eines Cookies leiten wir mit dem Token als URL-Parameter weiter.
+  const finalRedirectUrl = `${redirectUrl}?token=${tokenData.access_token}`;
+  
   return {
     statusCode: 302,
     headers: {
-      'Set-Cookie': `access_token=${tokenData.access_token}; Secure; SameSite=Strict; Path=/`,
-      Location: redirectUrl,
+      Location: finalRedirectUrl,
     },
   };
 };
