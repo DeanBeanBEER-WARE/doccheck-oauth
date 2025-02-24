@@ -17,7 +17,7 @@ exports.handler = async (event) => {
 
   // Hier muss deine Netlify-Domain stehen.
   // Diese URL muss auch im DocCheck-Portal als "Redirect-URL" hinterlegt sein.
-  const redirectUri = 'https://dein-projekt.netlify.app/.netlify/functions/oauth';
+  const redirectUri = 'https://420pharma.netlify.app/.netlify/functions/oauth';
 
   // 2) Prüfen, ob die Anfrage einen Code-Parameter enthält
   const { code } = event.queryStringParameters || {};
