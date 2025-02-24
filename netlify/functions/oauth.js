@@ -1,80 +1,49 @@
-// netlify/functions/oauth.js
+const fetch = require('node-fetch');
 
-/**
- * DocCheck OAuth2-Flow via Netlify Function
- * Greift auf Umgebungsvariablen DOCCHECK_CLIENT_ID und DOCCHECK_CLIENT_SECRET zu,
- * die du in den Netlify-Einstellungen hinterlegst.
- */
+exports.handler = async (event, context) => {
+  const { code, state } = event.queryStringParameters;
 
-const fetch = require('node-fetch'); 
-// Bei Node >= 18 könntest du fetch() direkt nutzen.
-// Hier nutzen wir node-fetch, wie in package.json angegeben.
-
-exports.handler = async (event) => {
-  // 1) Client-Daten aus Umgebungsvariablen
-  const clientId = process.env.DOCCHECK_CLIENT_ID || 'CLIENT_ID_PLATZHALTER';
-  const clientSecret = process.env.DOCCHECK_CLIENT_SECRET || 'CLIENT_SECRET_PLATZHALTER';
-
-  // Hier muss deine Netlify-Domain stehen.
-  // Diese URL muss auch im DocCheck-Portal als "Redirect-URL" hinterlegt sein.
-  const redirectUri = 'https://420pharma.netlify.app/.netlify/functions/oauth';
-
-  // 2) Prüfen, ob die Anfrage einen Code-Parameter enthält
-  const { code } = event.queryStringParameters || {};
-
-  // Wenn kein Code -> Weiterleitung zur DocCheck-Anmeldeseite
   if (!code) {
-    return {
-      statusCode: 302,
-      headers: {
-        Location: `https://login.doccheck.com/oauth/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}`
-      }
-    };
+    return { statusCode: 400, body: JSON.stringify({ error: 'Authorization code missing' }) };
   }
 
-  // 3) Token anfordern
-  const tokenUrl = 'https://login.doccheck.com/oauth/token';
-  const params = new URLSearchParams({
-    grant_type: 'authorization_code',
-    code,
-    redirect_uri: redirectUri,
-    client_id: clientId,
-    client_secret: clientSecret,
+  const client_id = process.env.CLIENT_ID;
+  const client_secret = process.env.CLIENT_SECRET;
+  const redirect_uri = 'https://420pharma.netlify.app/.netlify/functions/oauth';
+
+  const tokenResponse = await fetch('https://doccheck.com/oauth/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri,
+      client_id,
+      client_secret,
+    }),
   });
 
-  try {
-    // Token holen
-    const response = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: params
-    });
-    const data = await response.json();
+  const tokenData = await tokenResponse.json();
 
-    // 4) Wenn wir ein Access Token erhalten:
-    if (data.access_token) {
-      // Cookie setzen und redirecten
-      return {
-        statusCode: 302,
-        headers: {
-          'Set-Cookie': `uniqueKey=${data.access_token}; HttpOnly; Secure; Path=/; Max-Age=3600; SameSite=Lax`,
-          // Hier legst du die Zielseite fest, auf die nach erfolgreichem Login geleitet wird:
-          Location: 'https://www.420pharma.de/fachbereich'
-        }
-      };
-    } else {
-      // Fehlerfall: kein access_token
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ error: 'Authentication failed', details: data })
-      };
-    }
-  } catch (error) {
-    // Allgemeiner Fehler
-    console.error(error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Internal Server Error', message: error.message })
-    };
+  if (tokenData.error) {
+    return { statusCode: 400, body: JSON.stringify({ error: tokenData.error_description }) };
   }
+
+  const userInfoResponse = await fetch('https://doccheck.com/api/userinfo', {
+    headers: { Authorization: `Bearer ${tokenData.access_token}` },
+  });
+
+  const userInfo = await userInfoResponse.json();
+
+  let redirectUrl = 'https://www.420pharma.de/fachbereich';
+  if (userInfo.profession === 'doctor') redirectUrl = 'https://www.420pharma.de/fachbereich/arzt';
+  
+
+  return {
+    statusCode: 302,
+    headers: {
+      'Set-Cookie': `access_token=${tokenData.access_token}; HttpOnly; Secure; SameSite=Strict; Path=/`,
+      Location: redirectUrl,
+    },
+  };
 };
