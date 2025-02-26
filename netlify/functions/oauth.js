@@ -54,14 +54,15 @@ exports.handler = async (event) => {
     redirectUrl = 'https://www.420pharma.de/fachbereich';
   }
 
-  // 4) Token an Ziel-URL anhängen
-  const finalRedirect = `${redirectUrl}?token=${tokenData.access_token}`;
+  // 4) Setze den Token als Cookie statt ihn an die URL anzuhängen
+  const cookie = `token=${tokenData.access_token}; Path=/; HttpOnly; Secure; SameSite=Lax`;
 
   // 5) Weiterleitung
   return {
     statusCode: 302,
     headers: {
-      Location: finalRedirect,
+      'Set-Cookie': cookie,
+      Location: redirectUrl,
     },
   };
 };
