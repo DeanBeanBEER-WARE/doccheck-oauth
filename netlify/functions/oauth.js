@@ -14,7 +14,7 @@ exports.handler = async (event) => {
   const client_secret = process.env.CLIENT_SECRET;
   const redirect_uri = 'https://420pharma.netlify.app/.netlify/functions/oauth';
 
-  // 1) Tausche den code gegen einen Access Token
+  // Tausche den Code gegen einen Access Token
   const tokenResponse = await fetch('https://login.doccheck.com/service/oauth/access_token/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -35,33 +35,24 @@ exports.handler = async (event) => {
     };
   }
 
-  // 2) (Optional) Userinfo abrufen, falls du zusätzliche Infos brauchst
-  //    Hier nur, wenn du noch das Profil abfragen willst.
-  /*
-  const userInfoResponse = await fetch('https://login.doccheck.com/service/oauth/user_data/v2/', {
-    headers: { Authorization: `Bearer ${tokenData.access_token}` },
-  });
-  const userInfo = await userInfoResponse.json();
-  */
+  const accessToken = tokenData.access_token;
+  // Setze den Cookie mit allen Sicherheitsattributen
+  const cookie = `token=${accessToken}; Path=/; HttpOnly; Secure; SameSite=Lax`;
 
-  // 3) Bestimme das Ziel (based on "state" or fallback)
+  // Bestimme das Ziel
   let redirectUrl;
   if (state && state.trim() !== '') {
-    // z.B. state="/fachbereich/arzt"
     redirectUrl = `https://www.420pharma.de${state}`;
   } else {
-    // Standard: "/fachbereich"
     redirectUrl = 'https://www.420pharma.de/fachbereich';
   }
 
-  // 4) Token an Ziel-URL anhängen
-  const finalRedirect = `${redirectUrl}?token=${tokenData.access_token}`;
-
-  // 5) Weiterleitung
+  // Leite weiter und setze den Cookie
   return {
     statusCode: 302,
     headers: {
-      Location: finalRedirect,
+      'Set-Cookie': cookie,
+      Location: redirectUrl,
     },
   };
 };
